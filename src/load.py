@@ -1,39 +1,50 @@
-import numpy as np
-import pandas as pd
-import tensorflow as tf
-from bert_tf import run_squad as baseline
-from bert_tf import modeling as modeling
-from bert_tf import optimization
-from bert_tf import tokenization
-import json
-import absl
-import sys
+import torch
+from src import model as m
+import wikipedia
+from lxml import html
+import requests
+from googlesearch import search
 
-def del_all_flags(FLAGS):
-    flags_dict = FLAGS._flags()
-    keys_list = [keys for keys in flags_dict]
-    for keys in keys_list:
-        FLAGS.__delattr__(keys)
+# Generate masks for BERT model and prepare the text for training
 
-del_all_flags(absl.flags.FLAGS)
+def ask_question_(question):
+    reference = find_reference(question)
+    print(reference)
+    model_,tokenizer_= m.get_model()
+    encoded = tokenizer_.encode(question, reference)
+    sep_index = encoded.index(tokenizer_.sep_token_id)
+    seg_a_len = sep_index + 1
+    seg_b_len = len(encoded) - seg_a_len
+    token_type_ids = [0] * seg_a_len + [1] * seg_b_len
 
-flags = absl.flags
+    [start,end] = model_(torch.tensor([encoded]),token_type_ids=torch.tensor([token_type_ids]))
+    answer_start = torch.argmax(start)
+    answer_end = torch.argmax(end)
 
-flags.DEFINE_string(
-    "bert_config_file", "Question-Answering-BERT/src/bert-config/bert_config.json",
-    "Configuration json file corresponding to the pre-trained BERT model that specifies the model architecture ")
+    tokens = tokenizer_.convert_ids_to_tokens(encoded)
+
+    print("Question:", question, answer_start, answer_end)
+
+    answer = recreate_answer(tokens)
+
+    print('Answer: "' + answer + '"')
+
+def recreate_answer(tokens, start, end):
+    answer = tokens[start]
+    for i in range(start + 1, end + 1):
+        if tokens[i][0:2] == '##':
+            answer += tokens[i][2:]
+        else:
+            answer += ' ' + tokens[i]
+
+def find_reference(question):
+    # goes to wikipedia for you, finds a reference passage
+
+    # query = question + "wikipedia"
+    # link = next(search(query, tld='com', lang='en', num=1))
+    # page = requests.get(link)
+    # tree = html.fromstring(page.content)
+
+    return wikipedia.summary("McCormick", sentences=5)
 
 
-FLAGS = flags.FLAGS
-FLAGS(sys.argv) # Parse the flags
-
-bert_config = modeling.BertConfig.from_json_file(FLAGS.bert_config_file)
-baseline.validate_flags_or_throw(bert_config)
-tf.io.gfile.makedirs(FLAGS.output_dir)
-
-tokenizer = tokenization.FullTokenizer(
-    vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case)
-
-run_config = tf.estimator.RunConfig(
-    model_dir=FLAGS.output_dir,
-    save_checkpoints_steps=FLAGS.save_checkpoints_steps)
