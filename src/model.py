@@ -48,5 +48,5 @@ def get_model():
 
 # Put the model in feed-forward mode / evaluation
 if __name__  ==  "__main__":
-    load.ask_question_("What does whole-brain engineering mean?")
+    load.ask_question_("How is Northwestern so rich?")
 
