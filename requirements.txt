@@ -1,1 +1,7 @@
-
+torch
+transformers
+wikipedia
+time
+urllib
+googlesearch
+en_core_web_sm
