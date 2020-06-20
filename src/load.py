@@ -49,6 +49,7 @@ def find_reference(question):
     # page = requests.get(link)
     # tree = html.fromstring(page.content)
 
-    return wikipedia.summary("What is the nationality of Schapiro?", sentences=5)
+    return wikipedia.summary(question
+                             p, sentences=5)
 
 
